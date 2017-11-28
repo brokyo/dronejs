@@ -17,16 +17,11 @@
     <input type="range" min="0" max="360" v-model="canvasConfig.h"></input>
     <input type="range" min="0" max="100" v-model="canvasConfig.s"></input>
     <input type="range" min="0" max="100" v-model="canvasConfig.l"></input>
+    <br>
     <label>Pixels</label>
-    <input type="range" min="0" max="200" v-model="canvasConfig.rw"></input>
-    <input type="range" min="0" max="200" v-model="canvasConfig.rh"></input>
-    <input v-model="canvasConfig.shapes"></input>
-    <label>Interval<label>
-    <input type="range" min="50" max="1000" v-model="canvasConfig.interval"></input>
-    <label>Frequency</label>
-    <input type="range" min="0" max="500" v-model="filterConfig.frequency" @change="changeFilter"></input>
-    <label>Q</label>
-    <input type="range" min="0" max="100" v-model="filterConfig.Q" @change="changeFilter"></input>
+    <input type="range" min="0" max="20" v-model="canvasConfig.rw"></input>
+    <input type="range" min="0" max="20" v-model="canvasConfig.rh"></input>
+    <input type="range" min="0" max="0.5" step="0.01" v-model="canvasConfig.percent"></input><span>{{canvasConfig.percent}}</span>
     <canvas id="pixels"></canvas>
   </div>
 
@@ -34,7 +29,7 @@
     var app = new Vue({
       el: '#app',
       data: {
-        noiseNodes: 10,
+        noiseArray: [],
         filterArray: [],
         tone: {
           filter: {},
@@ -46,20 +41,19 @@
           l: 20,
           rw: 1,
           rh: 1,
-          shapes: 10,
+          percent: 0.2  ,
           interval: 500,
         },
         filterConfig: {
-          frequency: 200,
-          type: 'lowpass',
-          Q: 5
+          frequency: 120,
+          type: 'bandpass',
+          Q: 50
         }
       },
       methods: {
         changeFilter(event){
           this.filterArray.forEach((filter)=>{
             let frequency = this.filterConfig.frequency * (Math.random() * (2 - 1) + 1);
-            console.log(frequency)
             filter.set({'frequency': frequency})
           })
         }
@@ -67,31 +61,32 @@
       mounted () {
         var vue = this
 
-        createCanvas()
+        // createCanvas()
         createDrone()
 
-        function createCanvas() {
-          var canvas = document.getElementById("pixels");
+        // function createCanvas() {
+        //   var canvas = document.getElementById("pixels");
            
-          var w = window.screen.width * window.devicePixelRatio;
-          var h = window.screen.height * window.devicePixelRatio;
-          var pixelsCount = Math.round((w * h) / 2);
+        //   var w = window.screen.width * window.devicePixelRatio;
+        //   var h = window.screen.height * window.devicePixelRatio;
+        //   var pixels = Math.round((w * h) / 2);
 
-          var ctx = canvas.getContext("2d");
-          var i;
+        //   var ctx = canvas.getContext("2d");
+        //   var i;
            
-          window.setInterval(()=>{
-            for (i = 0; i < vue.canvasConfig.shapes; i++) {
-                ctx.fillStyle = 'hsl('+ vue.canvasConfig.h +','+vue.canvasConfig.s+'%,'+vue.canvasConfig.l+'%)';
-                ctx.fillRect(Math.random() * 600, Math.random() * 600, vue.canvasConfig.rw, vue.canvasConfig.rh);
-              }
-          }, vue.canvasConfig.interval)          
-        }
+        //   window.setInterval(()=>{
+        //     for (i = 0; i < pixels * vue.canvasConfig.percent; i++) {
+        //         ctx.fillStyle = 'hsl('+ vue.canvasConfig.h +','+vue.canvasConfig.s+'%,'+vue.canvasConfig.l+'%)';
+        //         ctx.fillRect(Math.random() * 600, Math.random() * 600, vue.canvasConfig.rw, vue.canvasConfig.rh);
+        //       }
+        //   }, vue.canvasConfig.interval)          
+        // }
 
         function createDrone() {
-          var context = new Tone.Context();
+          var context = Tone.context;
+          var gain = new Tone.Gain(1.00);
+          gain.toMaster()
 
-          var noiseNodes = []
           var bufferLen = 4096
 
           function createNoiseGen(freq) {
@@ -102,15 +97,18 @@
             var y = rand(min, max);
             var z = rand(min, max);
             panner.setPosition(x, y, z)
-            panner.toMaster()
+            panner.connect(gain)
 
-            filter = new Tone.Filter(vue.filterConfig)
-
-            var randFreq = vue.filterConfig.frequency * rand(1, 2); 
-            filter.set({frequency: randFreq})
+            // TODO: This should really be a tonejs filter
+            var filter = context.createBiquadFilter();
+            filter.type = "bandpass";
+            filter.frequency.value = 10000;
+            filter.Q.value = 0.05;
             filter.connect(panner)
+
             vue.filterArray.push(filter)
 
+            // TODO: Would Tone.Noise work here?
             var noiseSource = Tone.context.createScriptProcessor(bufferLen, 1, 2)
             noiseSource.onaudioprocess = function (e) {
               var outBufferL = e.outputBuffer.getChannelData(0)
@@ -122,32 +120,36 @@
             }
 
             noiseSource.connect(filter)
-            noiseNodes.push(noiseSource)
-            console.log(panner)
+            vue.noiseArray.push(noiseSource)
 
             setInterval(function () {
-              // console.log('oi')
               x = x + rand(-0.1, 0.1);
               y = y + rand(-0.1, 0.1);
               z = z + rand(-0.1, 0.1);
               panner.setPosition(x, y, z);
             }, 500);
-          }
+          } 
 
-          function generate(){
-            for(i=0;i<10;i++){
-              createNoiseGen(vue.freq)    
+          for(i=0;i<40;i++){
+            let stepsUp = rand(0, 12)
+            let modifiedFrequency = vue.filterConfig.frequency
+            const interval = 1.05945946
+
+            for(j=0;j<stepsUp;j++){
+              modifiedFrequency *= interval
             }
+
+            createNoiseGen(modifiedFrequency)
+
           }
 
           function rand(min, max) {
             return Math.random() * (max - min) + min;
           }
 
-          generate()
+            }
 
         }
-      }
     })
   </script>
 </body>

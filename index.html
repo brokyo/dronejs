@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Welcome to Vue</title>
+  <title>Windows</title>
   <script src="https://unpkg.com/vue"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/0.12.13/Tone.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
   <style>
     canvas {
       width: 100vw;
@@ -13,15 +14,18 @@
 </head>
 <body>
   <div id="app">
+    <label>Base: {{baseFrequency}}</label> <label>Oscillators: {{oscillators}}</label>
+    <br>
     <label>HSL</label>
     <input type="range" min="0" max="360" v-model="canvasConfig.h"></input>
     <input type="range" min="0" max="100" v-model="canvasConfig.s"></input>
     <input type="range" min="0" max="100" v-model="canvasConfig.l"></input>
     <br>
-    <label>Pixels</label>
-    <input type="range" min="0" max="20" v-model="canvasConfig.rw"></input>
-    <input type="range" min="0" max="20" v-model="canvasConfig.rh"></input>
-    <input type="range" min="0" max="0.5" step="0.01" v-model="canvasConfig.percent"></input><span>{{canvasConfig.percent}}</span>
+    <label>Shape (H/W)</label>
+    <input type="range" min="0" max="100" v-model="canvasConfig.rh"></input>
+    <input type="range" min="0" max="100" v-model="canvasConfig.rw"></input>
+    <label># shapes / interval</label>
+    <input type="range" min="0.0001" max="0.01" step="0.0001" v-model="canvasConfig.percent"></input>
     <canvas id="pixels"></canvas>
   </div>
 
@@ -29,125 +33,96 @@
     var app = new Vue({
       el: '#app',
       data: {
-        noiseArray: [],
-        filterArray: [],
-        tone: {
-          filter: {},
-          panner: {}
-        },
         canvasConfig: {
-          h: 120,
-          s: 20,
-          l: 20,
-          rw: 1,
+          h: 0,
+          s: 11,
+          l: 30,
+          rw: 100,
           rh: 1,
-          percent: 0.2  ,
+          percent: 0.0001  ,
           interval: 500,
-        },
-        filterConfig: {
-          frequency: 120,
-          type: 'bandpass',
-          Q: 50
         }
       },
-      methods: {
-        changeFilter(event){
-          this.filterArray.forEach((filter)=>{
-            let frequency = this.filterConfig.frequency * (Math.random() * (2 - 1) + 1);
-            filter.set({'frequency': frequency})
-          })
+      computed: {
+        baseFrequency () {
+          return _.sample([110, 220, 440])
+        },
+        oscillators () {
+          return _.random(2, 20)
         }
       },
       mounted () {
         var vue = this
 
-        // createCanvas()
+        createCanvas()
         createDrone()
 
-        // function createCanvas() {
-        //   var canvas = document.getElementById("pixels");
+        function createCanvas() {
+          var canvas = document.getElementById("pixels");
            
-        //   var w = window.screen.width * window.devicePixelRatio;
-        //   var h = window.screen.height * window.devicePixelRatio;
-        //   var pixels = Math.round((w * h) / 2);
+          var w = window.screen.width * window.devicePixelRatio;
+          var h = window.screen.height * window.devicePixelRatio;
+          var pixels = Math.round((w * h) / 2);
 
-        //   var ctx = canvas.getContext("2d");
-        //   var i;
-           
-        //   window.setInterval(()=>{
-        //     for (i = 0; i < pixels * vue.canvasConfig.percent; i++) {
-        //         ctx.fillStyle = 'hsl('+ vue.canvasConfig.h +','+vue.canvasConfig.s+'%,'+vue.canvasConfig.l+'%)';
-        //         ctx.fillRect(Math.random() * 600, Math.random() * 600, vue.canvasConfig.rw, vue.canvasConfig.rh);
-        //       }
-        //   }, vue.canvasConfig.interval)          
-        // }
+          var ctx = canvas.getContext("2d");           
+          window.setInterval(()=>{
+            let h = vue.canvasConfig.h + Math.random()*5
+            let s = vue.canvasConfig.s + Math.random()*5
+            for (var i = 0; i < pixels * vue.canvasConfig.percent; i++) {
+                ctx.fillStyle = 'hsl('+ h +','+ s +'%,'+vue.canvasConfig.l+'%)';
+                ctx.fillRect(Math.random() * 600, Math.random() * 600, vue.canvasConfig.rw, vue.canvasConfig.rh);
+              }
+          }, vue.canvasConfig.interval)          
+        }
 
         function createDrone() {
-          var context = Tone.context;
-          var gain = new Tone.Gain(1.00);
-          gain.toMaster()
 
-          var bufferLen = 4096
+          // Gain is the output node but also determines how loud
+          // TODO: Maybe loop this or something
+          var droneOut = new Tone.Gain(0.25);
+          droneOut.toMaster()
 
+          // Creates an output chain for each oscillator, generates random playback, & pans audio [final two update constantly]
           function createNoiseGen(freq) {
-            var panner = new Tone.Panner3D()
+
+            // Create panner 
+            var panner = new Tone.Panner3D();
             var max = 20;
             var min = -20;
-            var x = rand(min, max);
-            var y = rand(min, max);
-            var z = rand(min, max);
-            panner.setPosition(x, y, z)
-            panner.connect(gain)
+            var x = _.random(min, max);
+            var y = _.random(min, max);
+            var z = _.random(min, max);
+            panner.setPosition(x, y, z);
+            panner.connect(droneOut);
 
-            // TODO: This should really be a tonejs filter
-            var filter = context.createBiquadFilter();
-            filter.type = "bandpass";
-            filter.frequency.value = 10000;
-            filter.Q.value = 0.05;
-            filter.connect(panner)
+            var filter = new Tone.Filter({frequency: freq, type: 'lowpass', Q: 50})
+            filter.connect(panner);
 
-            vue.filterArray.push(filter)
+            var noiseSource = new Tone.Noise("pink")
+            noiseSource.start()
+            noiseSource.connect(filter);
 
-            // TODO: Would Tone.Noise work here?
-            var noiseSource = Tone.context.createScriptProcessor(bufferLen, 1, 2)
-            noiseSource.onaudioprocess = function (e) {
-              var outBufferL = e.outputBuffer.getChannelData(0)
-              var outBufferR = e.outputBuffer.getChannelData(1)
-
-              for (var i = 0; i < bufferLen; i++){
-                outBufferL[i] = outBufferR[i] = Math.random() * 2 - 1
-              }
-            }
-
-            noiseSource.connect(filter)
-            vue.noiseArray.push(noiseSource)
-
+            // Update panner position ever 500ms
             setInterval(function () {
-              x = x + rand(-0.1, 0.1);
-              y = y + rand(-0.1, 0.1);
-              z = z + rand(-0.1, 0.1);
+              x = x + _.random(-0.1, 0.1);
+              y = y + _.random(-0.1, 0.1);
+              z = z + _.random(-0.1, 0.1);
               panner.setPosition(x, y, z);
             }, 500);
-          } 
-
-          for(i=0;i<40;i++){
-            let stepsUp = rand(0, 12)
-            let modifiedFrequency = vue.filterConfig.frequency
-            const interval = 1.05945946
-
-            for(j=0;j<stepsUp;j++){
-              modifiedFrequency *= interval
-            }
-
-            createNoiseGen(modifiedFrequency)
-
           }
 
-          function rand(min, max) {
-            return Math.random() * (max - min) + min;
-          }
+          var scale = [0.0, 2.0, 4.0, 6.0, 7.0, 9.0, 11.0, 12.0, 14.0];
 
-            }
+          // Run createNoiseGen() for each oscillator
+          // // function takes bounded random frequency
+          for (var i = 0; i < 10; i++) {
+
+            // Get random note from scale and smudge
+            let freq = vue.baseFrequency * Math.pow(1.05945946, _.sample(scale))
+            freq += Math.random() * 4 - 2;
+            createNoiseGen(freq);
+          }
+        }
 
         }
     })

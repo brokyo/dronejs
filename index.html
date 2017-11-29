@@ -11,6 +11,10 @@
       width: 100vw;
       height: 100vh;
     }
+
+    .nipple {
+      z-index: 999999
+    }
   </style>
 </head>
 <body>
@@ -28,7 +32,9 @@
     <label># shapes / interval</label>
     <input type="range" min="0.0001" max="0.01" step="0.0001" v-model="canvasConfig.percent"></input>
  -->    <button @click="fullScreen">canvas full screen</button>
-    <canvas id="pixels"></canvas>
+     <div id="canvasContainer">
+      <canvas id="pixels"></canvas>
+    </div>
   </div>
 
   <script>
@@ -150,7 +156,7 @@
 
         function createControls() {
           var options = {
-            zone: document.getElementById("pixels")
+            zone: document.getElementById("canvasContainer")
           }
           var manager = nipplejs.create(options);
           manager.on('move', (e, data) => {

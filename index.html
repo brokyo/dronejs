@@ -5,7 +5,7 @@
   <script src="https://unpkg.com/vue"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/0.12.13/Tone.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
-  <script src="/node_modules/nipplejs/dist/nipplejs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.6.7/nipplejs.min.js"></script>
   <style>
     canvas {
       width: 100vw;
@@ -16,7 +16,7 @@
 <body>
   <div id="app">
     <label>Base: {{baseFrequency}}</label> <label>Oscillators: {{oscillators}}</label>
-    <br>
+<!--     <br>
     <label>HSL</label>
     <input type="range" min="0" max="360" v-model="canvasConfig.h"></input>
     <input type="range" min="0" max="100" v-model="canvasConfig.s"></input>
@@ -27,7 +27,7 @@
     <input type="range" min="0" max="100" v-model="canvasConfig.rw"></input>
     <label># shapes / interval</label>
     <input type="range" min="0.0001" max="0.01" step="0.0001" v-model="canvasConfig.percent"></input>
-    <button @click="fullScreen">canvas full screen</button>
+ -->    <button @click="fullScreen">canvas full screen</button>
     <canvas id="pixels"></canvas>
   </div>
 
@@ -149,12 +149,13 @@
         }
 
         function createControls() {
-          var manager = nipplejs.create({});
+          var options = {
+            zone: document.getElementById("pixels")
+          }
+          var manager = nipplejs.create(options);
           manager.on('move', (e, data) => {
             vue.canvasConfig.h = data.angle.degree
             vue.canvasConfig.rh = data.distance
-            // console.log(data.distance)
-            // console.log(data.force)
           })
         }
 

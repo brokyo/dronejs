@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Windows</title>
+  <title>Tell Me How To Feel</title>
   <script src="https://unpkg.com/vue"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/0.12.13/Tone.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
@@ -26,6 +26,7 @@
     <input type="range" min="0" max="100" v-model="canvasConfig.rw"></input>
     <label># shapes / interval</label>
     <input type="range" min="0.0001" max="0.01" step="0.0001" v-model="canvasConfig.percent"></input>
+    <button @click="fullScreen">canvas full screen</button>
     <canvas id="pixels"></canvas>
   </div>
 
@@ -51,6 +52,22 @@
           return _.random(2, 20)
         }
       },
+      methods: {
+        fullScreen() {
+          var canvas = document.getElementById("pixels")
+          if(canvas.RequestFullScreen){
+              canvas.RequestFullScreen();
+          }else if(canvas.webkitRequestFullScreen){
+              canvas.webkitRequestFullScreen();
+          }else if(canvas.mozRequestFullScreen){
+              canvas.mozRequestFullScreen();
+          }else if(canvas.msRequestFullscreen){
+              canvas.msRequestFullscreen();
+          }else{
+              alert("This browser doesn't supporter fullscreen");
+          }
+        }
+      },
       mounted () {
         var vue = this
 
@@ -59,20 +76,25 @@
 
         function createCanvas() {
           var canvas = document.getElementById("pixels");
-           
-          var w = window.screen.width * window.devicePixelRatio;
-          var h = window.screen.height * window.devicePixelRatio;
+          var ctx = canvas.getContext("2d");           
+
+          let w = window.screen.width * window.devicePixelRatio;
+          let h = window.screen.height * window.devicePixelRatio;
           var pixels = Math.round((w * h) / 2);
 
-          var ctx = canvas.getContext("2d");           
+
           window.setInterval(()=>{
             let h = vue.canvasConfig.h + Math.random()*5
             let s = vue.canvasConfig.s + Math.random()*5
+            let cw = vue.canvasConfig.rw * _.random(1, 1.1)
+            let ch = vue.canvasConfig.rh * _.random(1, 1.1)
+
             for (var i = 0; i < pixels * vue.canvasConfig.percent; i++) {
                 ctx.fillStyle = 'hsl('+ h +','+ s +'%,'+vue.canvasConfig.l+'%)';
-                ctx.fillRect(Math.random() * 600, Math.random() * 600, vue.canvasConfig.rw, vue.canvasConfig.rh);
+                ctx.fillRect(_.random(-40, 600), _.random(-40, 600), cw, ch);
               }
           }, vue.canvasConfig.interval)          
+
         }
 
         function createDrone() {
